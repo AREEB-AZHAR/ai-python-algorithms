@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Use Case Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            padding: 50px;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .diagram-container {
+            background-color: white;
+            padding: 40px;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        .instruction {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #e0f7fa;
+            color: #006064;
+            border-radius: 4px;
+            border: 1px solid #b2ebf2;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="instruction">
+        <strong>Instructions:</strong> Take a screenshot of the diagram below and paste it into your Word document.
+    </div>
+
+    <div class="diagram-container">
+        <div class="mermaid">
+            usecaseDiagram
+                actor "Child (Player)" as Player
+                actor "Parent/Guardian" as Admin
+                actor "System (AI)" as AI
+
+                rect "NeuroQuest Game System"
+                    usecase "Play Puzzle Level" as UC1
+                    usecase "Drag & Drop Pieces" as UC2
+                    usecase "View Reward/Feedback" as UC3
+                    usecase "View Progress/Analytics" as UC4
+                    usecase "Configure Sensory Settings" as UC5
+                    usecase "Adjust Difficulty Level" as UC6
+                    usecase "Track Performance Metrics" as UC7
+                end
+
+                Player -> UC1
+                Player -> UC2
+                Player -> UC3
+                
+                UC1 ..> UC2 : <<include>>
+                UC1 ..> UC3 : <<include>>
+
+                Admin -> UC4
+                Admin -> UC5
+
+                AI -> UC6
+                AI -> UC7
+                
+                UC1 ..> UC6 : <<extends>>
+                UC1 ..> UC7 : <<include>>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            usecase: {
+                padding: 15,
+                useMaxWidth: false
+            }
+        });
+    </script>
+</body>
+</html>

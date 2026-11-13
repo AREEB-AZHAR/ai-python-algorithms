@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Zombie Apocalypse 🧟</title>
+    <meta name="description" content="Survive the zombie apocalypse in this intense 2D platformer shooter">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'Inter',sans-serif; overflow:hidden; height:100vh; width:100vw;
+            background:#0a0a0f; color:#e0e0e0; touch-action:none; user-select:none;
+        }
+        canvas { display:block; }
+        #hud {
+            position:fixed; top:0; left:0; right:0; z-index:10;
+            background:linear-gradient(180deg,rgba(10,10,20,0.95) 0%,rgba(10,10,20,0.7) 80%,transparent 100%);
+            padding:8px 16px 20px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+            font-family:'Orbitron',monospace;
+        }
+        .stat-box {
+            display:flex; align-items:center; gap:6px; padding:4px 12px;
+            background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+            border-radius:8px; backdrop-filter:blur(4px);
+        }
+        .stat-icon { font-size:16px; }
+        .stat-val { font-size:14px; font-weight:700; letter-spacing:1px; }
+        .health-val { color:#ff4d6a; }
+        .coin-val { color:#ffd740; }
+        .kill-val { color:#69f0ae; }
+        .wave-val { color:#b388ff; }
+        .health-bar-wrap {
+            width:100px; height:8px; background:rgba(255,0,0,0.15);
+            border-radius:4px; overflow:hidden; position:relative;
+        }
+        .health-bar-fill {
+            height:100%; background:linear-gradient(90deg,#ff1744,#ff4d6a);
+            border-radius:4px; transition:width 0.3s ease; box-shadow:0 0 8px rgba(255,23,68,0.5);
+        }
+        #upgrade-bar {
+            position:fixed; bottom:0; left:0; right:0; z-index:10;
+            background:linear-gradient(0deg,rgba(10,10,20,0.95) 0%,rgba(10,10,20,0.7) 80%,transparent 100%);
+            padding:16px 12px 10px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap;
+        }
+        .up-btn {
+            font-family:'Orbitron',monospace; font-size:10px; padding:6px 10px;
+            background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+            color:#ccc; border-radius:8px; cursor:pointer; transition:all 0.2s;
+            min-width:90px; text-align:center; position:relative; overflow:hidden;
+        }
+        .up-btn:hover { background:rgba(105,240,174,0.15); border-color:#69f0ae; color:#69f0ae; transform:translateY(-2px); }
+        .up-btn:active { transform:scale(0.95); }
+        .up-btn .cost { color:#ffd740; font-size:9px; display:block; margin-top:2px; }
+        .up-btn.gemini-btn {
+            background:linear-gradient(135deg,rgba(124,77,255,0.2),rgba(233,30,99,0.2));
+            border-color:rgba(179,136,255,0.4); animation:pulse-glow 2s infinite;
+        }
+        .up-btn.gemini-btn:hover { border-color:#b388ff; }
+        @keyframes pulse-glow {
+            0%,100% { box-shadow:0 0 5px rgba(179,136,255,0.3); }
+            50% { box-shadow:0 0 20px rgba(179,136,255,0.5),0 0 40px rgba(179,136,255,0.2); }
+        }
+        .up-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
+        #powerup-toast {
+            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+            font-family:'Orbitron',monospace; font-size:18px; color:#b388ff;
+            text-shadow:0 0 20px rgba(179,136,255,0.8); pointer-events:none;
+            opacity:0; transition:opacity 0.5s; z-index:20;
+        }
+        #powerup-toast.show { opacity:1; }
+        #game-over-screen {
+            display:none; position:fixed; inset:0; z-index:50;
+            background:rgba(5,5,10,0.92); flex-direction:column;
+            justify-content:center; align-items:center; font-family:'Orbitron',monospace;
+        }
+        #game-over-screen.show { display:flex; }
+        #game-over-screen h1 {
+            font-size:clamp(36px,8vw,72px); font-weight:900;
+            background:linear-gradient(135deg,#ff1744,#ff6e40);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+            text-shadow:none; margin-bottom:10px;
+        }
+        #game-over-screen .go-stats { color:#888; font-size:14px; margin:4px 0; }
+        #restart-btn {
+            margin-top:20px; padding:12px 36px; font-family:'Orbitron',monospace;
+            font-size:14px; background:linear-gradient(135deg,#69f0ae,#00e676);
+            color:#0a0a0f; border:none; border-radius:12px; cursor:pointer;
+            font-weight:700; transition:transform 0.2s,box-shadow 0.2s;
+        }
+        #restart-btn:hover { transform:scale(1.05); box-shadow:0 0 30px rgba(105,240,174,0.4); }
+        #mobile-controls {
+            position:fixed; bottom:70px; left:0; right:0; z-index:15;
+            display:none; justify-content:space-between; align-items:flex-end; padding:0 16px;
+        }
+        .ctrl-btn {
+            width:60px; height:60px; border-radius:50%; border:2px solid rgba(255,255,255,0.15);
+            background:rgba(255,255,255,0.06); color:#fff; font-size:22px;
+            display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px);
+        }
+        .ctrl-btn:active { background:rgba(105,240,174,0.3); border-color:#69f0ae; }
+        .ctrl-group { display:flex; gap:10px; }
+        .jump-btn { width:70px; height:70px; font-size:12px; font-family:'Orbitron',monospace; font-weight:700; }
+        @media (pointer:coarse) { #mobile-controls { display:flex; } }
+        #start-screen {
+            position:fixed; inset:0; z-index:100; display:flex; flex-direction:column;
+            justify-content:center; align-items:center;
+            background:radial-gradient(ellipse at center,rgba(20,10,40,0.98),rgba(5,5,10,0.99));
+            font-family:'Orbitron',monospace;
+        }
+        #start-screen h1 {
+            font-size:clamp(28px,6vw,56px); font-weight:900;
+            background:linear-gradient(135deg,#69f0ae,#00e5ff);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+        }
+        #start-screen p { color:#666; font-size:12px; margin:8px 0 24px; }
+        #play-btn {
+            padding:14px 48px; font-family:'Orbitron',monospace; font-size:16px;
+            background:linear-gradient(135deg,#7c4dff,#e91e63); color:#fff;
+            border:none; border-radius:16px; cursor:pointer; font-weight:700;
+            transition:transform 0.2s,box-shadow 0.2s;
+            box-shadow:0 0 30px rgba(124,77,255,0.3);
+        }
+        #play-btn:hover { transform:scale(1.08); box-shadow:0 0 50px rgba(124,77,255,0.5); }
+        .combo-text {
+            position:fixed; top:45%; left:50%; transform:translate(-50%,-50%);
+            font-family:'Orbitron',monospace; font-size:24px; font-weight:900;
+            pointer-events:none; z-index:20; opacity:0; transition:opacity 0.3s;
+        }
+        .combo-text.show { opacity:1; }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1>ZOMBIE APOCALYPSE</h1>
+        <p>WASD/Arrows to move • Auto-shoot • Survive the horde</p>
+        <button id="play-btn">▶ PLAY</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" style="display:none;">
+        <div class="stat-box">
+            <span class="stat-icon">❤️</span>
+            <div class="health-bar-wrap"><div id="health-fill" class="health-bar-fill" style="width:100%"></div></div>
+            <span id="health-val" class="stat-val health-val">100</span>
+        </div>
+        <div class="stat-box"><span class="stat-icon">💰</span><span id="coin-val" class="stat-val coin-val">0</span></div>
+        <div class="stat-box"><span class="stat-icon">💀</span><span id="kill-val" class="stat-val kill-val">0</span></div>
+        <div class="stat-box"><span class="stat-icon">🌊</span><span id="wave-val" class="stat-val wave-val">Wave 1</span></div>
+    </div>
+
+    <!-- Upgrade Bar -->
+    <div id="upgrade-bar" style="display:none;">
+        <button id="up-dmg" class="up-btn">💥 DMG <span id="dmg-lvl">L1</span><span class="cost" id="dmg-cost">💰100</span></button>
+        <button id="up-rate" class="up-btn">⚡ RATE <span id="rate-lvl">L1</span><span class="cost" id="rate-cost">💰120</span></button>
+        <button id="up-hp" class="up-btn">❤️ HP <span id="hp-lvl">L1</span><span class="cost" id="hp-cost">💰80</span></button>
+        <button id="up-jump" class="up-btn">🦘 JUMP <span id="jump-lvl">L1</span><span class="cost" id="jump-cost">💰150</span></button>
+        <button id="up-range" class="up-btn">🎯 RANGE <span id="range-lvl">L1</span><span class="cost" id="range-cost">💰130</span></button>
+        <button id="up-gemini" class="up-btn gemini-btn">✨ AI POWER<span class="cost" id="gem-cost">💰500</span></button>
+    </div>
+
+    <!-- Powerup Toast -->
+    <div id="powerup-toast"></div>
+    <div id="combo-text" class="combo-text"></div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <div class="ctrl-group">
+            <button id="m-left" class="ctrl-btn">◀</button>
+            <button id="m-right" class="ctrl-btn">▶</button>
+        </div>
+        <button id="m-jump" class="ctrl-btn jump-btn">JUMP</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over-screen">
+        <h1>GAME OVER</h1>
+        <p class="go-stats">Kills: <span id="go-kills">0</span></p>
+        <p class="go-stats">Waves Survived: <span id="go-waves">0</span></p>
+        <p class="go-stats">Coins Earned: <span id="go-coins">0</span></p>
+        <button id="restart-btn">↻ PLAY AGAIN</button>
+    </div>
+
+<script>
+// ============================================================
+// GAME ENGINE - Enhanced Zombie Apocalypse
+// ============================================================
+const GRAVITY = 0.55;
+const WORLD_W = 4000;
+const GROUND_Y_OFFSET = 30;
+const TILE = 40;
+
+let player, zombies, bullets, coins, platforms, particles, floatingTexts, explosions;
+let kills = 0, totalCoinsEarned = 0;
+let spawnRate = 180, spawnTimer = 0;
+let gameState = 'START'; // START, PLAYING, OVER
+let wave = 1, waveKillTarget = 8, waveKills = 0;
+let screenShake = 0, screenShakeIntensity = 0;
+let isMovingLeft = false, isMovingRight = false;
+let bgStars = [], bgMountains = [];
+let comboCount = 0, comboTimer = 0;
+
+// Precompute background
+function initBackground() {
+    bgStars = [];
+    for (let i = 0; i < 200; i++) {
+        bgStars.push({ x: Math.random()*WORLD_W, y: Math.random()*0.7, s: Math.random()*2.5+0.5, b: Math.random()*150+50, sp: Math.random()*0.02+0.005 });
+    }
+    bgMountains = [];
+    for (let layer = 0; layer < 3; layer++) {
+        let pts = [];
+        let step = 80 + layer * 40;
+        for (let x = 0; x <= WORLD_W + step; x += step) {
+            pts.push({ x, y: 0.55 + layer*0.1 + Math.random()*0.12 });
+        }
+        bgMountains.push({ pts, parallax: 0.2 + layer*0.15, col: [12+layer*8, 14+layer*6, 25+layer*10] });
+    }
+}
+
+function setup() {
+    let c = createCanvas(windowWidth, windowHeight);
+    c.parent(document.body);
+    initBackground();
+    document.getElementById('play-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+    setupUpgradeButtons();
+    setupMobileControls();
+}
+
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('hud').style.display = 'flex';
+    document.getElementById('upgrade-bar').style.display = 'flex';
+    platforms = generatePlatforms();
+    player = new Player(width/2, height - 150);
+    zombies = []; bullets = []; coins = []; particles = []; floatingTexts = []; explosions = [];
+    kills = 0; totalCoinsEarned = 0; wave = 1; waveKills = 0; waveKillTarget = 8;
+    spawnRate = 180; spawnTimer = 0; comboCount = 0; comboTimer = 0;
+    gameState = 'PLAYING';
+    updateUI();
+}
+
+function generatePlatforms() {
+    let plats = [];
+    // Ground
+    plats.push(new Platform(0, height - GROUND_Y_OFFSET, WORLD_W, GROUND_Y_OFFSET + 100, true));
+    // Tiered platforms
+    let numPlats = 20 + wave * 2;
+    for (let i = 0; i < Math.min(numPlats, 40); i++) {
+        let pw = random(80, 200);
+        let px = random(100, WORLD_W - 200);
+        let py = random(height - 250, height - 70);
+        // Avoid overlap with existing
+        let ok = true;
+        for (let p of plats) {
+            if (abs(px - p.x) < pw + 20 && abs(py - p.y) < 40) { ok = false; break; }
+        }
+        if (ok) plats.push(new Platform(px, py, pw, 12, false));
+    }
+    return plats;
+}
+
+function draw() {
+    if (gameState !== 'PLAYING') { if (gameState === 'START') background(10,10,15); return; }
+
+    // Screen shake
+    let shX = 0, shY = 0;
+    if (screenShake > 0) {
+        shX = random(-screenShakeIntensity, screenShakeIntensity);
+        shY = random(-screenShakeIntensity, screenShakeIntensity);
+        screenShake--;
+    }
+
+    background(8, 10, 18);
+    push();
+    translate(shX, shY);
+
+    let camX = -player.pos.x + width/2;
+
+    // Draw background layers
+    drawSky(camX);
+    drawMountains(camX);
+    drawStars(camX);
+
+    push();
+    translate(camX, 0);
+
+    // Platforms
+    for (let p of platforms) p.display();
+
+    // Coins
+    for (let i = coins.length-1; i >= 0; i--) {
+        coins[i].update(); coins[i].display();
+        if (coins[i].collect(player)) {
+            player.coins += coins[i].value;
+            totalCoinsEarned += coins[i].value;
+            spawnParticles(coins[i].pos.x, coins[i].pos.y, [255,215,0], 5);
+            floatingTexts.push(new FloatingText(coins[i].pos.x, coins[i].pos.y - 10, '+' + coins[i].value, [255,215,0]));
+            coins.splice(i, 1);
+            updateUI();
+        } else if (coins[i].lifespan <= 0) { coins.splice(i, 1); }
+    }
+
+    // Bullets
+    for (let i = bullets.length-1; i >= 0; i--) {
+        bullets[i].update(); bullets[i].display();
+        let hit = false;
+        for (let j = zombies.length-1; j >= 0; j--) {
+            if (bullets[i] && bullets[i].hits(zombies[j])) {
+                zombies[j].takeDamage(bullets[i].damage);
+                spawnParticles(bullets[i].pos.x, bullets[i].pos.y, [255,100,100], 4);
+                if (bullets[i].piercing <= 0) { hit = true; }
+                else { bullets[i].piercing--; }
+                break;
+            }
+        }
+        if (hit || (bullets[i] && bullets[i].lifespan <= 0)) { bullets.splice(i, 1); }
+    }
+
+    // Zombies
+    for (let i = zombies.length-1; i >= 0; i--) {
+        zombies[i].update(); zombies[i].display();
+        if (zombies[i].health <= 0) {
+            let cv = floor(random(15, 60 + wave * 5));
+            coins.push(new Coin(zombies[i].pos.x, zombies[i].pos.y, cv));
+            spawnParticles(zombies[i].pos.x, zombies[i].pos.y, [34,197,94], 12);
+            explosions.push({ x:zombies[i].pos.x, y:zombies[i].pos.y, r:0, maxR:40, alpha:255 });
+            doScreenShake(3, 3);
+            zombies.splice(i, 1);
+            kills++; waveKills++;
+            // Combo system
+            comboCount++; comboTimer = 120;
+            if (comboCount >= 3) showCombo(comboCount);
+            updateUI();
+        }
+    }
+
+    // Player
+    player.display();
+
+    // Particles
+    for (let i = particles.length-1; i >= 0; i--) {
+        particles[i].update(); particles[i].display();
+        if (particles[i].alpha <= 0) particles.splice(i, 1);
+    }
+
+    // Explosions
+    for (let i = explosions.length-1; i >= 0; i--) {
+        let e = explosions[i];
+        e.r += 3; e.alpha -= 12;
+        noFill(); stroke(255, 100, 50, e.alpha); strokeWeight(2);
+        ellipse(e.x, e.y, e.r*2);
+        if (e.alpha <= 0) explosions.splice(i, 1);
+    }
+
+    // Floating texts
+    for (let i = floatingTexts.length-1; i >= 0; i--) {
+        floatingTexts[i].update(); floatingTexts[i].display();
+        if (floatingTexts[i].alpha <= 0) floatingTexts.splice(i, 1);
+    }
+
+    pop();
+    pop();
+
+    // Player update (after drawing)
+    player.update();
+
+    // Combo timer
+    if (comboTimer > 0) { comboTimer--; }
+    else { comboCount = 0; }
+
+    // Spawning
+    spawnTimer++;
+    if (spawnTimer >= spawnRate) {
+        spawnZombie();
+        spawnTimer = 0;
+    }
+
+    // Wave system
+    if (waveKills >= waveKillTarget) {
+        wave++; waveKills = 0;
+        waveKillTarget = 8 + wave * 3;
+        if (spawnRate > 30) spawnRate = max(30, spawnRate - 12);
+        showToast('🌊 WAVE ' + wave);
+        // Heal on wave clear
+        player.health = min(player.health + 20, player.maxHealth);
+        updateUI();
+    }
+
+    // Draw vignette overlay
+    drawVignette();
+}
+
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+
+// ============================================================
+// BACKGROUND RENDERING
+// ============================================================
+function drawSky(camX) {
+    noStroke();
+    let ctx = drawingContext;
+    let skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+    skyGrad.addColorStop(0, '#060810');
+    skyGrad.addColorStop(0.3, '#0c0a1a');
+    skyGrad.addColorStop(0.55, '#1a0f2e');
+    skyGrad.addColorStop(0.75, '#121a25');
+    skyGrad.addColorStop(1, '#0a1210');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // Moon
+    let moonX = width * 0.78, moonY = height * 0.15;
+    // Moon glow
+    let moonGlow = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, 120);
+    moonGlow.addColorStop(0, 'rgba(200,210,255,0.15)');
+    moonGlow.addColorStop(0.5, 'rgba(150,160,220,0.05)');
+    moonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = moonGlow;
+    ctx.fillRect(moonX-150, moonY-150, 300, 300);
+    // Moon body
+    fill(220, 225, 240);
+    noStroke();
+    ellipse(moonX, moonY, 40, 40);
+    fill(200, 205, 220, 80);
+    ellipse(moonX - 5, moonY - 3, 10, 10);
+    ellipse(moonX + 8, moonY + 6, 7, 7);
+    ellipse(moonX - 2, moonY + 9, 5, 5);
+}
+
+function drawMountains(camX) {
+    for (let li = 0; li < bgMountains.length; li++) {
+        let layer = bgMountains[li];
+        let px = camX * layer.parallax;
+        noStroke();
+        // Gradient fill for mountains
+        let ctx = drawingContext;
+        let baseY = height * (0.55 + li * 0.1);
+        let mGrad = ctx.createLinearGradient(0, baseY - 60, 0, height);
+        let c = layer.col;
+        mGrad.addColorStop(0, `rgba(${c[0]+8},${c[1]+8},${c[2]+15},1)`);
+        mGrad.addColorStop(1, `rgba(${c[0]-4},${c[1]-4},${c[2]-4},1)`);
+        ctx.fillStyle = mGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+        for (let pt of layer.pts) {
+            let sx = pt.x + px;
+            sx = ((sx % WORLD_W) + WORLD_W) % WORLD_W;
+            sx = map(sx, 0, WORLD_W, -width * 0.3, width * 1.3);
+            ctx.lineTo(sx, pt.y * height);
+        }
+        ctx.lineTo(width, height);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+function drawStars(camX) {
+    noStroke();
+    for (let s of bgStars) {
+        let sx = (s.x + camX * 0.1) % WORLD_W;
+        if (sx < 0) sx += WORLD_W;
+        let screenX = map(sx, 0, WORLD_W, 0, width);
+        let flicker = sin(frameCount * s.sp) * 40 + s.b;
+        fill(255, 255, 255, flicker);
+        ellipse(screenX, s.y * height, s.s, s.s);
+        // Bright stars get a tiny cross
+        if (s.s > 2) {
+            stroke(255,255,255, flicker * 0.3);
+            strokeWeight(0.5);
+            line(screenX - 3, s.y*height, screenX + 3, s.y*height);
+            line(screenX, s.y*height - 3, screenX, s.y*height + 3);
+            noStroke();
+        }
+    }
+}
+
+function drawVignette() {
+    noStroke();
+    let ctx = drawingContext;
+    let g = ctx.createRadialGradient(width/2, height/2, height*0.25, width/2, height/2, height*0.95);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.7, 'rgba(0,0,0,0.15)');
+    g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, width, height);
+}
+
+// ============================================================
+// PLAYER
+// ============================================================
+class Player {
+    constructor(x, y) {
+        this.pos = createVector(x, y);
+        this.vel = createVector(0, 0);
+        this.w = 28; this.h = 42;
+        this.speed = 4.5; this.jumpForce = 12; this.onGround = false; this.facing = 1;
+        this.health = 100; this.maxHealth = 100; this.coins = 0;
+        this.range = 350; this.fireRate = 35; this.fireCooldown = 0; this.damage = 18;
+        this.walkFrame = 0; this.isWalking = false; this.eyeBlink = 0;
+        this.dashCooldown = 0; this.invincibleFrames = 0;
+        this.upgrades = {
+            damage:   { level:1, cost:100, inc:60 },
+            fireRate: { level:1, cost:120, inc:70 },
+            health:   { level:1, cost:80,  inc:50 },
+            jump:     { level:1, cost:150, inc:80 },
+            range:    { level:1, cost:130, inc:65 }
+        };
+        this.activePowerUp = { type:'NONE', name:'', timer:0 };
+        this.baseStats = {};
+        this.trailPositions = [];
+    }
+
+    update() {
+        // Power-up timer
+        if (this.activePowerUp.type !== 'NONE') {
+            this.activePowerUp.timer--;
+            let secs = ceil(this.activePowerUp.timer / 60);
+            document.getElementById('powerup-toast').textContent = this.activePowerUp.name + ' ' + secs + 's';
+            document.getElementById('powerup-toast').classList.add('show');
+            if (this.activePowerUp.timer <= 0) this.deactivatePowerUp();
+        }
+
+        // Movement
+        let moving = false;
+        let spd = this.getSpeed();
+        if (keyIsDown(65) || keyIsDown(LEFT_ARROW) || isMovingLeft) { this.vel.x = -spd; this.facing = -1; moving = true; }
+        else if (keyIsDown(68) || keyIsDown(RIGHT_ARROW) || isMovingRight) { this.vel.x = spd; this.facing = 1; moving = true; }
+        else { this.vel.x *= 0.7; } // Friction
+
+        this.isWalking = moving && this.onGround;
+        if (this.isWalking) this.walkFrame += 0.2;
+
+        // Gravity & physics
+        this.vel.y += GRAVITY;
+        this.pos.add(this.vel);
+        this.onGround = false;
+
+        // Platform collision
+        for (let p of platforms) {
+            if (this.pos.x + this.w/2 > p.x && this.pos.x - this.w/2 < p.x + p.w &&
+                this.pos.y + this.h/2 > p.y && this.pos.y + this.h/2 < p.y + p.h + 10) {
+                if (this.vel.y >= 0) {
+                    this.vel.y = 0; this.pos.y = p.y - this.h/2; this.onGround = true;
+                }
+            }
+        }
+
+        this.pos.x = constrain(this.pos.x, this.w/2, WORLD_W - this.w/2);
+
+        // Shooting
+        this.fireCooldown--;
+        if (this.fireCooldown <= 0) this.shoot();
+
+        // Trail
+        if (moving) {
+            this.trailPositions.push({ x:this.pos.x, y:this.pos.y, a:100 });
+            if (this.trailPositions.length > 8) this.trailPositions.shift();
+        }
+        for (let t of this.trailPositions) t.a -= 8;
+        this.trailPositions = this.trailPositions.filter(t => t.a > 0);
+
+        // Invincibility frames
+        if (this.invincibleFrames > 0) this.invincibleFrames--;
+        if (this.dashCooldown > 0) this.dashCooldown--;
+
+        // Walk particles
+        if (this.isWalking && frameCount % 6 === 0) {
+            particles.push(new Particle(this.pos.x, this.pos.y + this.h/2, random(-1,1), random(-1,-0.3), [150,150,170], 4));
+        }
+    }
+
+    getSpeed() { return this.activePowerUp.type === 'SPEED' ? this.speed * 1.8 : this.speed; }
+    getDamage() { return this.activePowerUp.type === 'DAMAGE' ? this.damage * 2.5 : this.damage; }
+    getFireRate() { return this.activePowerUp.type === 'FIRE_RATE' ? this.fireRate / 3 : this.fireRate; }
+
+    activatePowerUp(type, name) {
+        this.baseStats = { damage:this.damage, fireRate:this.fireRate, speed:this.speed };
+        this.activePowerUp = { type, name, timer:600 };
+        showToast('✨ ' + name + ' activated!');
+    }
+    deactivatePowerUp() {
+        this.activePowerUp = { type:'NONE', name:'', timer:0 };
+        document.getElementById('powerup-toast').classList.remove('show');
+        updateUI();
+    }
+
+    jump() {
+        if (this.onGround) {
+            this.vel.y = -this.jumpForce;
+            // Jump particles
+            for (let i = 0; i < 6; i++) {
+                particles.push(new Particle(this.pos.x, this.pos.y+this.h/2, random(-2,2), random(-1,0.5), [105,240,174], 5));
+            }
+        }
+    }
+
+    shoot() {
+        let nearest = null, nearDist = Infinity;
+        for (let z of zombies) {
+            let d = dist(this.pos.x, this.pos.y, z.pos.x, z.pos.y);
+            if (d < this.range && d < nearDist) { nearDist = d; nearest = z; }
+        }
+        if (nearest) {
+            let dir = (nearest.pos.x > this.pos.x) ? 1 : -1;
+            let angle = atan2(nearest.pos.y - this.pos.y, nearest.pos.x - this.pos.x);
+            this.facing = dir;
+            bullets.push(new Bullet(this.pos.x + dir*15, this.pos.y - 4, angle, this.getDamage()));
+            this.fireCooldown = this.getFireRate();
+            // Muzzle flash
+            for (let i = 0; i < 3; i++) {
+                particles.push(new Particle(this.pos.x + dir*18, this.pos.y - 4, random(-1,1)*dir, random(-1,1), [255,200,50], 3));
+            }
+        }
+    }
+
+    takeDamage(amount) {
+        if (this.activePowerUp.type === 'INVINCIBILITY' || this.invincibleFrames > 0) return;
+        this.health -= amount;
+        this.invincibleFrames = 15;
+        doScreenShake(4, 4);
+        if (this.health <= 0) { this.health = 0; gameOver(); }
+        updateUI();
+    }
+
+    display() {
+        // Trail
+        for (let t of this.trailPositions) {
+            fill(0,230,118, t.a * 0.3);
+            noStroke();
+            rectMode(CENTER);
+            rect(t.x, t.y, this.w * 0.6, this.h * 0.6, 4);
+        }
+
+        // Flash on hit
+        let flash = this.invincibleFrames > 0 && frameCount % 4 < 2;
+        if (flash) return;
+
+        push();
+        translate(this.pos.x, this.pos.y);
+        rectMode(CENTER);
+
+        // Power-up glow aura
+        if (this.activePowerUp.type !== 'NONE') {
+            let glowCol = this.activePowerUp.type === 'INVINCIBILITY' ? [255,255,255] :
+                this.activePowerUp.type === 'DAMAGE' ? [255,68,68] :
+                this.activePowerUp.type === 'SPEED' ? [68,255,68] :
+                this.activePowerUp.type === 'FIRE_RATE' ? [68,140,255] : [255,215,0];
+            let pulse = sin(frameCount * 0.15) * 30 + 60;
+            noStroke();
+            fill(glowCol[0], glowCol[1], glowCol[2], pulse);
+            ellipse(0, 0, this.w + 20, this.h + 20);
+        }
+
+        // Shadow on ground
+        noStroke();
+        fill(0, 0, 0, 40);
+        ellipse(0, this.h/2 + 2, this.w + 6, 8);
+
+        let legOff = this.isWalking ? sin(this.walkFrame * 6) * 6 : 0;
+
+        // === BOOTS ===
+        fill(45, 35, 30);
+        noStroke();
+        rect(-6, this.h/2 - 2 + legOff, 8, 8, 2);  // Left boot
+        rect(6, this.h/2 - 2 - legOff, 8, 8, 2);   // Right boot
+        // Boot sole
+        fill(30, 22, 18);
+        rect(-6, this.h/2 + 2 + legOff, 9, 3, 1);
+        rect(6, this.h/2 + 2 - legOff, 9, 3, 1);
+
+        // === PANTS (legs) ===
+        fill(50, 65, 50);
+        rect(-6, this.h/2 - 10 + legOff, 7, 14, 2);
+        rect(6, this.h/2 - 10 - legOff, 7, 14, 2);
+
+        // === TORSO ===
+        // Base shirt
+        fill(22, 120, 70);
+        stroke(16, 90, 55);
+        strokeWeight(1);
+        rect(0, -4, this.w, this.h - 20, 5);
+        noStroke();
+
+        // Tactical vest
+        fill(35, 75, 45);
+        rect(0, -6, this.w - 4, this.h - 26, 4);
+        // Vest pockets
+        fill(28, 60, 38);
+        rect(-4, -2, 7, 6, 2);
+        rect(4, -2, 7, 6, 2);
+        // Belt
+        fill(55, 45, 30);
+        rect(0, 8, this.w - 2, 4, 1);
+        fill(180, 160, 80);
+        rect(0, 8, 4, 4, 1); // Belt buckle
+
+        // === ARMS ===
+        let armSwing = this.isWalking ? sin(this.walkFrame * 6) * 0.3 : 0;
+
+        // Back arm (non-gun)
+        push();
+        translate(-this.facing * 12, -4);
+        rotate(-armSwing);
+        fill(22, 120, 70);
+        rect(0, 4, 6, 16, 3); // Sleeve
+        fill(190, 160, 120);
+        rect(0, 13, 5, 6, 2); // Hand
+        pop();
+
+        // Front arm (gun arm)
+        push();
+        translate(this.facing * 12, -4);
+        rotate(armSwing * 0.5);
+        fill(22, 120, 70);
+        rect(0, 4, 6, 14, 3); // Sleeve
+        fill(190, 160, 120);
+        rect(0, 12, 5, 5, 2); // Hand
+        // === GUN ===
+        fill(60, 60, 65);
+        stroke(40, 40, 45);
+        strokeWeight(0.5);
+        rect(this.facing * 10, 10, 18, 5, 2); // Gun body
+        noStroke();
+        fill(80, 80, 85);
+        rect(this.facing * 18, 10, 6, 4, 1); // Barrel
+        fill(45, 45, 48);
+        rect(this.facing * 5, 14, 4, 6, 1); // Grip
+        // Muzzle tip
+        fill(120, 110, 100);
+        rect(this.facing * 22, 10, 3, 3, 1);
+        pop();
+
+        // === HEAD ===
+        // Neck
+        fill(190, 160, 120);
+        noStroke();
+        rect(0, -this.h/2 + 14, 8, 6, 2);
+
+        // Head base (skin)
+        fill(200, 170, 130);
+        stroke(180, 150, 110);
+        strokeWeight(0.8);
+        ellipse(0, -this.h/2 + 5, 22, 22);
+        noStroke();
+
+        // Helmet
+        fill(55, 75, 55);
+        arc(0, -this.h/2 + 3, 24, 22, PI, 0, CHORD);
+        // Helmet rim
+        fill(45, 60, 45);
+        rect(0, -this.h/2 + 3, 26, 4, 2);
+        // Helmet detail stripe
+        fill(70, 95, 70);
+        rect(0, -this.h/2 - 2, 14, 3, 1);
+
+        // === VISOR / EYES ===
+        let eyeOff = this.facing * 3;
+        // Eye whites
+        fill(240, 240, 240);
+        ellipse(eyeOff - 4, -this.h/2 + 7, 6, 6);
+        ellipse(eyeOff + 4, -this.h/2 + 7, 6, 6);
+        // Irises
+        fill(60, 130, 80);
+        ellipse(eyeOff - 4 + this.facing * 1.2, -this.h/2 + 7, 3.5, 3.5);
+        ellipse(eyeOff + 4 + this.facing * 1.2, -this.h/2 + 7, 3.5, 3.5);
+        // Pupils
+        fill(15, 15, 15);
+        ellipse(eyeOff - 4 + this.facing * 1.5, -this.h/2 + 7, 1.8, 1.8);
+        ellipse(eyeOff + 4 + this.facing * 1.5, -this.h/2 + 7, 1.8, 1.8);
+
+        // Mouth (determined expression)
+        stroke(150, 120, 90);
+        strokeWeight(1.2);
+        noFill();
+        line(eyeOff - 3, -this.h/2 + 13, eyeOff + 3, -this.h/2 + 13);
+        noStroke();
+
+        pop(); // end player push
+
+        // === HEALTH BAR above player (using CORNER mode for proper fill) ===
+        let barW = 38, barH = 5;
+        let hpPct = constrain(this.health / this.maxHealth, 0, 1);
+        let barX = this.pos.x - barW / 2;
+        let barY = this.pos.y - this.h / 2 - 18;
+        rectMode(CORNER);
+        noStroke();
+        fill(0, 0, 0, 140);
+        rect(barX - 1, barY - 1, barW + 2, barH + 2, 3);
+        fill(40, 40, 40);
+        rect(barX, barY, barW, barH, 2);
+        let hpCol = lerpColor(color(255, 30, 60), color(80, 240, 140), hpPct);
+        fill(hpCol);
+        rect(barX, barY, barW * hpPct, barH, 2);
+        // Shine on health bar
+        fill(255, 255, 255, 40);
+        rect(barX, barY, barW * hpPct, barH / 2, 2);
+        rectMode(CENTER);
+    }
+
+    upgrade(stat) {
+        let u = this.upgrades[stat];
+        if (this.coins < u.cost) return;
+        this.coins -= u.cost;
+        u.level++;
+        u.cost += u.inc;
+        switch(stat) {
+            case 'damage': this.damage += 10; break;
+            case 'fireRate': this.fireRate = max(6, this.fireRate - 3); break;
+            case 'health': this.maxHealth += 30; this.health = this.maxHealth; break;
+            case 'jump': this.jumpForce += 1.2; break;
+            case 'range': this.range += 40; break;
+        }
+        showToast('⬆ ' + stat.toUpperCase() + ' upgraded!');
+        updateUI();
+    }
+}
+
+// ============================================================
+// ZOMBIE (multiple types)
+// ============================================================
+class Zombie {
+    constructor(x, y, type) {
+        this.pos = createVector(x, y);
+        this.vel = createVector(0, 0);
+        this.type = type || 'normal';
+        this.facing = 1;
+        this.walkFrame = 0;
+
+        switch(this.type) {
+            case 'fast':
+                this.w = 26; this.h = 38; this.speed = random(2.5, 3.5);
+                this.health = 30 + kills; this.maxHealth = this.health;
+                this.damage = 10; this.bodyColor = [80, 30, 30]; this.skinColor = [180, 60, 60];
+                break;
+            case 'tank':
+                this.w = 44; this.h = 52; this.speed = random(0.5, 1.0);
+                this.health = 200 + kills * 5; this.maxHealth = this.health;
+                this.damage = 25; this.bodyColor = [30, 50, 30]; this.skinColor = [60, 120, 60];
+                break;
+            default: // normal
+                this.w = 32; this.h = 44; this.speed = random(0.9, 2.0);
+                this.health = 60 + kills * 2.5; this.maxHealth = this.health;
+                this.damage = 15; this.bodyColor = [40, 60, 30]; this.skinColor = [80, 140, 60];
+        }
+    }
+
+    update() {
+        if (player.pos.x > this.pos.x) { this.vel.x = this.speed; this.facing = 1; }
+        else { this.vel.x = -this.speed; this.facing = -1; }
+
+        this.vel.y += GRAVITY;
+        this.pos.add(this.vel);
+        this.walkFrame += this.speed * 0.15;
+
+        // Platform collision
+        for (let p of platforms) {
+            if (this.pos.x + this.w/2 > p.x && this.pos.x - this.w/2 < p.x + p.w &&
+                this.pos.y + this.h/2 > p.y && this.pos.y + this.h/2 < p.y + p.h + 10) {
+                if (this.vel.y >= 0) {
+                    this.vel.y = 0; this.pos.y = p.y - this.h/2;
+                }
+            }
+        }
+
+        // Attack player
+        if (abs(this.pos.x - player.pos.x) < (this.w + player.w)/2 &&
+            abs(this.pos.y - player.pos.y) < (this.h + player.h)/2) {
+            player.takeDamage(this.damage * (1/60));
+        }
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+    }
+
+    display() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rectMode(CENTER);
+
+        // Shadow
+        noStroke();
+        fill(0, 0, 0, 35);
+        ellipse(0, this.h/2 + 2, this.w + 6, 10);
+
+        let legOff = sin(this.walkFrame * 5) * 5;
+
+        // === FEET ===
+        fill(this.bodyColor[0]-15, this.bodyColor[1]-15, this.bodyColor[2]-15);
+        noStroke();
+        rect(-6, this.h/2 + legOff, 8, 6, 2);
+        rect(6, this.h/2 - legOff, 8, 6, 2);
+
+        // === LEGS ===
+        fill(this.bodyColor[0]-5, this.bodyColor[1]-5, this.bodyColor[2]-5);
+        rect(-6, this.h/2 - 8 + legOff, 7, 14, 2);
+        rect(6, this.h/2 - 8 - legOff, 7, 14, 2);
+
+        // === TORSO ===
+        fill(this.bodyColor[0], this.bodyColor[1], this.bodyColor[2]);
+        stroke(0, 0, 0, 50);
+        strokeWeight(1);
+        rect(0, -2, this.w, this.h - 16, 4);
+        noStroke();
+
+        // Torn clothing marks (stable, based on zombie hash)
+        let hash = (this.pos.x * 13 + this.pos.y * 7) & 0xFF;
+        fill(this.bodyColor[0]+20, this.bodyColor[1]+12, this.bodyColor[2]+5, 50);
+        rect((hash % 7) - 3, 3, 6, 5, 1);
+        rect(((hash >> 3) % 5) - 2, -5, 5, 4, 1);
+        // Rib/bone showing through
+        if (this.type === 'tank') {
+            fill(200, 190, 170, 50);
+            for (let r = -6; r < 6; r += 4) rect(0, r, this.w - 12, 1.5, 0.5);
+        }
+
+        // === ARMS reaching forward ===
+        let armReach = sin(this.walkFrame * 3.5) * 0.4;
+        // Back arm
+        push();
+        translate(-this.facing * 10, -2);
+        rotate(-armReach * 0.6);
+        fill(this.skinColor[0]-10, this.skinColor[1]-10, this.skinColor[2]-10);
+        noStroke();
+        rect(0, 5, 5, 16, 2);
+        // Claw hand
+        fill(this.skinColor[0]-20, this.skinColor[1]-15, this.skinColor[2]-10);
+        rect(0, 14, 6, 5, 2);
+        pop();
+
+        // Front arm
+        push();
+        translate(this.facing * 14, -3);
+        rotate(armReach);
+        fill(this.skinColor[0], this.skinColor[1], this.skinColor[2]);
+        noStroke();
+        rect(this.facing * 3, 4, 5, 18, 2);
+        // Claw hand reaching
+        fill(this.skinColor[0]-15, this.skinColor[1]-10, this.skinColor[2]-5);
+        rect(this.facing * 3, 14, 7, 6, 2);
+        // Fingers/claws
+        fill(this.skinColor[0]-25, this.skinColor[1]-20, this.skinColor[2]-15);
+        rect(this.facing * 1, 18, 2, 4, 1);
+        rect(this.facing * 4, 18, 2, 4, 1);
+        rect(this.facing * 7, 17, 2, 3, 1);
+        pop();
+
+        // === HEAD ===
+        // Neck
+        fill(this.skinColor[0]-5, this.skinColor[1]-5, this.skinColor[2]-5);
+        noStroke();
+        rect(0, -this.h/2 + 14, 7, 5, 2);
+
+        // Head shape
+        fill(this.skinColor[0], this.skinColor[1], this.skinColor[2]);
+        stroke(this.skinColor[0]-20, this.skinColor[1]-20, this.skinColor[2]-20, 80);
+        strokeWeight(0.8);
+        ellipse(0, -this.h/2 + 6, 20, 20);
+        noStroke();
+
+        // Wounds/scars on face
+        stroke(this.skinColor[0]+30, this.bodyColor[1]-10, this.bodyColor[2]-10, 80);
+        strokeWeight(1);
+        line(-4, -this.h/2 + 2, -2, -this.h/2 + 6);
+        noStroke();
+
+        // === EYES (glowing red) ===
+        let glow = sin(frameCount * 0.12) * 30 + 210;
+        drawingContext.shadowBlur = 6;
+        drawingContext.shadowColor = `rgba(${glow},30,30,0.6)`;
+        fill(glow, 40, 30);
+        let eyeF = this.facing * 2;
+        ellipse(eyeF - 3, -this.h/2 + 5, 5, 6);
+        ellipse(eyeF + 3, -this.h/2 + 5, 5, 6);
+        // Bright pupil center
+        fill(255, 80, 40, glow);
+        ellipse(eyeF - 3, -this.h/2 + 5, 2, 2.5);
+        ellipse(eyeF + 3, -this.h/2 + 5, 2, 2.5);
+        drawingContext.shadowBlur = 0;
+
+        // Mouth (open, groaning)
+        fill(30, 10, 10);
+        ellipse(eyeF, -this.h/2 + 12, 8, 4 + sin(this.walkFrame * 2) * 2);
+        // Teeth
+        fill(200, 190, 170);
+        rect(eyeF - 2, -this.h/2 + 11, 2, 2, 0.5);
+        rect(eyeF + 2, -this.h/2 + 11, 2, 2, 0.5);
+
+        // === HEALTH BAR (using CORNER mode) ===
+        if (this.health < this.maxHealth) {
+            let barW = this.w + 8, barH = 3;
+            let pct = constrain(this.health / this.maxHealth, 0, 1);
+            rectMode(CORNER);
+            noStroke();
+            fill(0, 0, 0, 120);
+            rect(-barW/2 - 1, -this.h/2 - 12, barW + 2, barH + 2, 2);
+            fill(50, 20, 20);
+            rect(-barW/2, -this.h/2 - 11, barW, barH, 1);
+            fill(lerpColor(color(220,30,30), color(80,220,80), pct));
+            rect(-barW/2, -this.h/2 - 11, barW * pct, barH, 1);
+            rectMode(CENTER);
+        }
+
+        pop();
+    }
+}
+
+// ============================================================
+// BULLET
+// ============================================================
+class Bullet {
+    constructor(x, y, angle, damage) {
+        this.pos = createVector(x, y);
+        let speed = 14;
+        this.vel = createVector(cos(angle) * speed, sin(angle) * speed);
+        this.damage = damage;
+        this.lifespan = 90;
+        this.trail = [];
+        this.piercing = 0;
+    }
+    update() {
+        this.trail.push({ x:this.pos.x, y:this.pos.y });
+        if (this.trail.length > 6) this.trail.shift();
+        this.pos.add(this.vel);
+        this.lifespan--;
+    }
+    hits(zombie) {
+        return abs(this.pos.x - zombie.pos.x) < zombie.w/2 + 4 &&
+               abs(this.pos.y - zombie.pos.y) < zombie.h/2 + 4;
+    }
+    display() {
+        // Trail
+        noStroke();
+        for (let i = 0; i < this.trail.length; i++) {
+            let a = map(i, 0, this.trail.length, 20, 150);
+            fill(255, 200, 50, a);
+            let s = map(i, 0, this.trail.length, 2, 5);
+            ellipse(this.trail[i].x, this.trail[i].y, s);
+        }
+        // Bullet
+        fill(255, 240, 100);
+        drawingContext.shadowBlur = 10;
+        drawingContext.shadowColor = '#ffcc00';
+        ellipse(this.pos.x, this.pos.y, 6, 6);
+        drawingContext.shadowBlur = 0;
+    }
+}
+
+// ============================================================
+// COIN
+// ============================================================
+class Coin {
+    constructor(x, y, value) {
+        this.pos = createVector(x, y);
+        this.vel = createVector(random(-2,2), random(-4,-1));
+        this.value = value; this.size = 14; this.lifespan = 360;
+        this.bobPhase = random(TWO_PI); this.grounded = false;
+    }
+    update() {
+        if (!this.grounded) {
+            this.vel.y += 0.3;
+            this.pos.add(this.vel);
+            for (let p of platforms) {
+                if (this.pos.x > p.x && this.pos.x < p.x + p.w &&
+                    this.pos.y + 6 > p.y && this.pos.y + 6 < p.y + p.h + 5) {
+                    this.pos.y = p.y - 6;
+                    this.grounded = true;
+                }
+            }
+        }
+        this.lifespan--;
+        // Coin magnet
+        if (player.activePowerUp.type === 'COIN_MAGNET') {
+            let dir = p5.Vector.sub(player.pos, this.pos);
+            dir.normalize().mult(5);
+            this.pos.add(dir);
+        }
+    }
+    collect(p) {
+        return abs(this.pos.x - p.pos.x) < 30 && abs(this.pos.y - p.pos.y) < 30;
+    }
+    display() {
+        let bob = sin(frameCount * 0.08 + this.bobPhase) * 3;
+        let alpha = this.lifespan < 60 ? map(this.lifespan, 0, 60, 0, 255) : 255;
+        push();
+        translate(this.pos.x, this.pos.y + bob);
+        // Glow
+        drawingContext.shadowBlur = 8;
+        drawingContext.shadowColor = 'rgba(255,215,0,0.5)';
+        noStroke();
+        fill(255, 215, 0, alpha);
+        ellipse(0, 0, this.size, this.size);
+        // Shine
+        fill(255, 240, 150, alpha * 0.7);
+        ellipse(-2, -2, 5, 5);
+        // Dollar sign
+        fill(180, 140, 0, alpha);
+        textSize(8); textAlign(CENTER, CENTER);
+        text('$', 0, 0);
+        drawingContext.shadowBlur = 0;
+        pop();
+    }
+}
+
+// ============================================================
+// PLATFORM
+// ============================================================
+class Platform {
+    constructor(x, y, w, h, isGround) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+        this.isGround = isGround;
+        // Pre-compute grass blade positions for ground
+        this.grassBlades = [];
+        if (isGround) {
+            for (let gx = 0; gx < w; gx += 5) {
+                this.grassBlades.push({
+                    x: gx, h: 4 + (((gx * 7 + 13) * 37) % 8),
+                    shade: ((gx * 3 + 11) % 40)
+                });
+            }
+        }
+        // Pre-compute moss patches for floating platforms
+        this.mosses = [];
+        if (!isGround) {
+            let seed = (x * 17 + y * 31) & 0xFFF;
+            let count = Math.floor(w / 30);
+            for (let i = 0; i < count; i++) {
+                seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+                this.mosses.push({ x: (seed % (w - 10)) + 5, w: 8 + seed % 12 });
+            }
+        }
+    }
+    display() {
+        noStroke();
+        if (this.isGround) {
+            // Dirt layers
+            let ctx = drawingContext;
+            let grd = ctx.createLinearGradient(0, this.y, 0, this.y + this.h);
+            grd.addColorStop(0, '#2d3a25');
+            grd.addColorStop(0.15, '#26301e');
+            grd.addColorStop(0.5, '#1a2016');
+            grd.addColorStop(1, '#101410');
+            ctx.fillStyle = grd;
+            ctx.fillRect(this.x, this.y, this.w, this.h);
+
+            // Dirt texture line
+            stroke(50, 45, 35, 30);
+            strokeWeight(1);
+            for (let dy = 8; dy < this.h; dy += 12) {
+                line(this.x, this.y + dy, this.x + this.w, this.y + dy);
+            }
+            noStroke();
+
+            // Grass top strip
+            fill(40, 130, 55);
+            rect(this.x, this.y, this.w, 3);
+
+            // Individual grass blades
+            for (let g of this.grassBlades) {
+                let gx = this.x + g.x;
+                let shade = g.shade;
+                fill(45 + shade, 140 + shade, 55 + shade/2);
+                triangle(gx, this.y, gx + 2.5, this.y - g.h, gx + 5, this.y);
+            }
+
+            // Subtle rocks/pebbles
+            fill(60, 55, 45, 40);
+            let rockSeed = (this.x * 11) & 0xFFFF;
+            for (let i = 0; i < 5; i++) {
+                rockSeed = (rockSeed * 1103515245 + 12345) & 0x7FFFFFFF;
+                let rx = this.x + (rockSeed % this.w);
+                ellipse(rx, this.y + 5, 6, 4);
+            }
+        } else {
+            // === FLOATING PLATFORM ===
+            // Main platform body with gradient
+            let ctx = drawingContext;
+            let pGrd = ctx.createLinearGradient(0, this.y, 0, this.y + this.h);
+            pGrd.addColorStop(0, '#4a5568');
+            pGrd.addColorStop(0.4, '#3d4556');
+            pGrd.addColorStop(1, '#2d3442');
+            ctx.fillStyle = pGrd;
+            // Rounded rect manually
+            let r = 5;
+            ctx.beginPath();
+            ctx.roundRect(this.x, this.y, this.w, this.h, r);
+            ctx.fill();
+
+            // Top edge highlight
+            stroke(100, 115, 140, 120);
+            strokeWeight(1);
+            line(this.x + 4, this.y + 1, this.x + this.w - 4, this.y + 1);
+            noStroke();
+
+            // Bottom edge shadow
+            fill(0, 0, 0, 30);
+            rect(this.x + 3, this.y + this.h - 2, this.w - 6, 2, 1);
+
+            // Bolts/rivets
+            fill(80, 90, 110);
+            stroke(60, 68, 85);
+            strokeWeight(0.5);
+            ellipse(this.x + 7, this.y + this.h/2, 5, 5);
+            ellipse(this.x + this.w - 7, this.y + this.h/2, 5, 5);
+            // Bolt shine
+            noStroke();
+            fill(120, 130, 155, 100);
+            ellipse(this.x + 6.5, this.y + this.h/2 - 0.5, 2, 2);
+            ellipse(this.x + this.w - 7.5, this.y + this.h/2 - 0.5, 2, 2);
+
+            // Cross-hatch texture on platform
+            stroke(70, 80, 95, 25);
+            strokeWeight(0.5);
+            for (let dx = 20; dx < this.w - 10; dx += 25) {
+                line(this.x + dx, this.y + 3, this.x + dx, this.y + this.h - 3);
+            }
+            noStroke();
+
+            // Moss patches on top
+            for (let m of this.mosses) {
+                fill(55, 120, 60, 60);
+                ellipse(this.x + m.x, this.y + 1, m.w, 4);
+            }
+        }
+    }
+}
+
+// ============================================================
+// PARTICLES & EFFECTS
+// ============================================================
+class Particle {
+    constructor(x, y, vx, vy, col, size) {
+        this.pos = createVector(x, y);
+        this.vel = createVector(vx, vy);
+        this.col = col; this.size = size; this.alpha = 255;
+    }
+    update() {
+        this.vel.y += 0.05;
+        this.pos.add(this.vel);
+        this.alpha -= 6;
+        this.size *= 0.97;
+    }
+    display() {
+        noStroke();
+        fill(this.col[0], this.col[1], this.col[2], this.alpha);
+        ellipse(this.pos.x, this.pos.y, this.size);
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, col) {
+        this.x = x; this.y = y; this.text = text;
+        this.col = col; this.alpha = 255; this.vy = -1.5;
+    }
+    update() { this.y += this.vy; this.alpha -= 4; }
+    display() {
+        textAlign(CENTER); textSize(14); textStyle(BOLD);
+        fill(this.col[0], this.col[1], this.col[2], this.alpha);
+        noStroke();
+        text(this.text, this.x, this.y);
+    }
+}
+
+function spawnParticles(x, y, col, count) {
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, random(-3,3), random(-3,1), col, random(3,7)));
+    }
+}
+
+function doScreenShake(duration, intensity) {
+    screenShake = duration; screenShakeIntensity = intensity;
+}
+
+// ============================================================
+// SPAWNING & WAVES
+// ============================================================
+function spawnZombie() {
+    let side = random() > 0.5 ? 1 : -1;
+    let x = player.pos.x + side * (width/2 + 80);
+    let y = height - 100;
+    let type = 'normal';
+    let r = random();
+    if (wave >= 3 && r < 0.2) type = 'fast';
+    if (wave >= 5 && r < 0.1) type = 'tank';
+    zombies.push(new Zombie(x, y, type));
+}
+
+// ============================================================
+// UI
+// ============================================================
+function updateUI() {
+    let hpPct = (player.health / player.maxHealth) * 100;
+    document.getElementById('health-fill').style.width = hpPct + '%';
+    document.getElementById('health-val').textContent = ceil(player.health);
+    document.getElementById('coin-val').textContent = player.coins;
+    document.getElementById('kill-val').textContent = kills;
+    document.getElementById('wave-val').textContent = 'Wave ' + wave;
+    // Upgrades
+    let u = player.upgrades;
+    document.getElementById('dmg-lvl').textContent = 'L' + u.damage.level;
+    document.getElementById('dmg-cost').textContent = '💰' + u.damage.cost;
+    document.getElementById('rate-lvl').textContent = 'L' + u.fireRate.level;
+    document.getElementById('rate-cost').textContent = '💰' + u.fireRate.cost;
+    document.getElementById('hp-lvl').textContent = 'L' + u.health.level;
+    document.getElementById('hp-cost').textContent = '💰' + u.health.cost;
+    document.getElementById('jump-lvl').textContent = 'L' + u.jump.level;
+    document.getElementById('jump-cost').textContent = '💰' + u.jump.cost;
+    document.getElementById('range-lvl').textContent = 'L' + u.range.level;
+    document.getElementById('range-cost').textContent = '💰' + u.range.cost;
+    document.getElementById('up-gemini').disabled = player.coins < 500 || player.activePowerUp.type !== 'NONE';
+}
+
+function showToast(msg) {
+    let t = document.getElementById('powerup-toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function showCombo(count) {
+    let el = document.getElementById('combo-text');
+    let colors = ['#69f0ae','#ffd740','#ff4081','#e040fb','#7c4dff'];
+    el.style.color = colors[min(count-3, colors.length-1)];
+    el.textContent = '🔥 ' + count + 'x COMBO!';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 800);
+    // Bonus coins for combos
+    let bonus = count * 5;
+    player.coins += bonus;
+    totalCoinsEarned += bonus;
+}
+
+function gameOver() {
+    gameState = 'OVER';
+    document.getElementById('go-kills').textContent = kills;
+    document.getElementById('go-waves').textContent = wave;
+    document.getElementById('go-coins').textContent = totalCoinsEarned;
+    document.getElementById('game-over-screen').classList.add('show');
+    noLoop();
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+function keyPressed() {
+    if (gameState !== 'PLAYING') return;
+    if ((keyCode === 87 || keyCode === UP_ARROW || keyCode === 32) && player.onGround) player.jump();
+}
+
+function setupUpgradeButtons() {
+    document.getElementById('up-dmg').addEventListener('click', () => player && player.upgrade('damage'));
+    document.getElementById('up-rate').addEventListener('click', () => player && player.upgrade('fireRate'));
+    document.getElementById('up-hp').addEventListener('click', () => player && player.upgrade('health'));
+    document.getElementById('up-jump').addEventListener('click', () => player && player.upgrade('jump'));
+    document.getElementById('up-range').addEventListener('click', () => player && player.upgrade('range'));
+    document.getElementById('up-gemini').addEventListener('click', getAiPowerUp);
+}
+
+function setupMobileControls() {
+    let ml = document.getElementById('m-left'), mr = document.getElementById('m-right'), mj = document.getElementById('m-jump');
+    ml.addEventListener('touchstart', e => { e.preventDefault(); isMovingLeft = true; }, {passive:false});
+    ml.addEventListener('touchend', e => { e.preventDefault(); isMovingLeft = false; });
+    mr.addEventListener('touchstart', e => { e.preventDefault(); isMovingRight = true; }, {passive:false});
+    mr.addEventListener('touchend', e => { e.preventDefault(); isMovingRight = false; });
+    mj.addEventListener('touchstart', e => { e.preventDefault(); if (player && player.onGround) player.jump(); }, {passive:false});
+}
+
+// ============================================================
+// GEMINI AI POWER-UP
+// ============================================================
+async function getAiPowerUp() {
+    if (!player || player.coins < 500 || player.activePowerUp.type !== 'NONE') return;
+    player.coins -= 500;
+    document.getElementById('up-gemini').disabled = true;
+    showToast('📡 Receiving signal...');
+    updateUI();
+
+    const prompt = "Generate a creative, temporary power-up for a zombie survival game. The power-up should be one of the following types: FIRE_RATE, DAMAGE, SPEED, INVINCIBILITY, or COIN_MAGNET.";
+    const payload = {
+        contents: [{ role:"user", parts:[{text:prompt}] }],
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: { powerUpName:{type:"STRING"}, powerUpType:{type:"STRING",enum:["FIRE_RATE","DAMAGE","SPEED","INVINCIBILITY","COIN_MAGNET"]} },
+                required: ["powerUpName","powerUpType"]
+            }
+        }
+    };
+    try {
+        let response, attempts = 0, delay = 1000;
+        while (attempts < 5) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            response = await fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+            if (response.ok) break;
+            await new Promise(r => setTimeout(r, delay)); delay *= 2; attempts++;
+        }
+        if (!response.ok) throw new Error('API failed');
+        const result = await response.json();
+        if (result.candidates && result.candidates.length > 0) {
+            const data = JSON.parse(result.candidates[0].content.parts[0].text);
+            player.activatePowerUp(data.powerUpType, data.powerUpName);
+        } else throw new Error('Bad response');
+    } catch(e) {
+        console.error(e);
+        showToast('❌ Signal lost...');
+        player.coins += 500;
+        setTimeout(() => updateUI(), 1500);
+    }
+}
+</script>
+</body>
+</html>
